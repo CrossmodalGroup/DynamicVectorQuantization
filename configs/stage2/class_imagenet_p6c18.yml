@@ -1,0 +1,129 @@
+model:
+  learning_rate: 0.0005
+  min_learning_rate: 0.0
+  target: models.stage2_dynamic.dqtransformer_class2_entropy.Dualformer
+  params:
+    transformer_config:
+      target: modules.dynamic_modules.stackgpt.StackGPT
+      params:
+        vocab_size: 2026  # 1024 + 1 (pad) + 1 (eos) + 1000 (class number)
+        coarse_position_size: 1258  # 256 + 1 (pad) + 1 (eos) + 1000 (class number)
+        fine_position_size: 2026  # 1024 + 1 (pad) + 1 (eos) + 1000 (class number)
+        segment_size: 2  # coarse and fine
+        block_size: 2048  # as large as possible
+        position_layer: 6  # 12
+        content_layer: 18  # 12
+        n_head: 8
+        n_embd: 1024
+        embd_pdrop: 0.1
+        resid_pdrop: 0.1
+        attn_pdrop: 0.1
+        content_pad_code: 1024
+        coarse_position_pad_code: 256
+        fine_position_pad_code: 1024
+        activate_pad_ignore: True
+
+    first_stage_config:
+      target: models.stage1_dynamic.dqvae_dual_entropy.DualGrainVQModel
+      params:
+        ckpt_path: "put your pre-trained DQ-VAE ckpt path"
+        encoderconfig:
+          target: modules.dynamic_modules.EncoderDual.DualGrainEncoder
+          params:
+            ch: 128
+            ch_mult: [1,1,2,2,4]
+            num_res_blocks: 2
+            attn_resolutions: [16, 32]
+            dropout: 0.0
+            resamp_with_conv: true
+            in_channels: 3
+            resolution: 256
+            z_channels: 256
+            update_router: False
+            router_config:
+              target: modules.dynamic_modules.RouterDual.DualGrainFixedEntropyRouter
+              params:
+                json_path: scripts/tools/thresholds/entropy_thresholds_imagenet_train_patch-16.json
+                fine_grain_ratito: 0.5
+        decoderconfig:
+          target: modules.dynamic_modules.DecoderPositional.Decoder
+          params:
+            ch: 128
+            in_ch: 256
+            out_ch: 3
+            ch_mult: [1,1,2,2]
+            num_res_blocks: 2
+            resolution: 256
+            attn_resolutions: [32]
+            latent_size: 32
+            window_size: 2
+            position_type: fourier+learned
+        lossconfig:
+          target: modules.losses.vqperceptual.DummyLoss
+      
+        vqconfig:
+          target: modules.vector_quantization.quantize2_mask.VectorQuantize2
+          params:
+            codebook_size: 1024
+            codebook_dim: 256
+            channel_last: false
+            accept_image_fmap: true
+            commitment_beta: 0.25
+            decay: 0.99
+            restart_unused_codes: True
+
+        quant_before_dim: 256
+        quant_after_dim: 256
+        quant_sample_temperature: 0.0
+        image_key: image
+        # monitor: val_rec_loss
+        # warmup_epochs: 0.1
+        # scheduler_type: linear-warmup_cosine-decay
+
+    class_cond_stage_config:
+      target: modules.dynamic_modules.label_provider.ClassAwareSOSProvider
+      params:
+        n_classes: 1000
+        threshold_content: 1026
+        threshold_coarse_position: 258
+        threshold_fine_position: 1026
+        coarse_seg_sos: 0
+        fine_seg_sos: 1
+
+    permuter_config:
+      target: modules.dynamic_modules.permuter.DualGrainSeperatePermuter
+      params:
+        coarse_hw: 16
+        fine_hw: 32
+        content_pad_code: 1024
+        content_eos_code: 1025
+        coarse_position_pad_code: 256
+        coarse_position_eos_code: 257
+        fine_position_pad_code: 1024
+        fine_position_eos_code: 1025
+        fine_position_order: row-first
+
+    content_loss_weight: 1.0
+    position_loss_weight: 1.0
+    activate_sos_for_fine_sequence: True
+    weight_decay: 0.01
+    warmup_epochs: 0
+    monitor: val_loss
+
+data:
+  target: data.build.DataModuleFromConfig
+  params:
+    batch_size: 30
+    num_workers: 8
+    train:
+      target: data.imagenet.ImageNetTrain
+      params:
+        config:
+          is_eval: False
+          size: 256
+    validation:
+      target: data.imagenet.ImageNetValidation
+      params:
+        config:
+          is_eval: True
+          size: 256
