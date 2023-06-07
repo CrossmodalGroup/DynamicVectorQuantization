@@ -10,16 +10,16 @@ import numpy as np
 
 sys.path.append(os.getcwd())
 
-from data.ffhq_lmdb import FFHQ_LMDB
+from data.imagenet import ImageNetValidation
 from utils.utils import instantiate_from_config
-
+from modules.dynamic_modules.utils import draw_dual_grain_256res_color
 
 def get_parser(**parser_kwargs):
     parser = argparse.ArgumentParser(**parser_kwargs)
     parser.add_argument("--yaml_path", type=str, default="")
     parser.add_argument("--model_path", type=str, default="")
-    parser.add_argument("--dataset", type=str, default="ffhq")
     parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--image_save_path", type=str, default="")
 
     return parser
 
@@ -27,10 +27,7 @@ if __name__ == "__main__":
     parser = get_parser()
     opt, unknown = parser.parse_known_args()
 
-    if opt.dataset == "ffhq":
-        dataset = FFHQ_LMDB(split="val", resolution=256, is_eval=True)
-    else:
-        raise NotImplementedError()
+    dataset = ImageNetValidation(config={"size" : 256, "is_eval" :True})
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, num_workers=1)
 
     # init and save configs
@@ -44,12 +41,15 @@ if __name__ == "__main__":
     result_list = []
     for i, data in tqdm(enumerate(dataloader)):
         images = data["image"].float().cuda()
-        dec, diff, grain_indices, gate = model(images)
+        dec, diff, grain_indices, gate, _ = model(images)
 
         sequence_length = 1 * (grain_indices == 0) + 4 * (grain_indices == 1)
         sequence_length = sequence_length.sum(-1).sum(-1)
 
         result_list += sequence_length.cpu().numpy().tolist()
+        
+        grain_map = draw_dual_grain_256res_color(images=images.clone(), indices=grain_indices, scaler=0.7)
+        torchvision.utils.save_image(grain_map, "{}/grain_images_{}.png".format(opt.image_save_path, i))
 
     print("mean: ", np.mean(result_list))
     print("variance: ", np.var(result_list))

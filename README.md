@@ -117,6 +117,12 @@ NOTE: some important hyper-parameters in the config file:
 - the vocab size of coarse granularity's position: `model.params.transformer_config.params.coarse_position_size`, which should include the size of coarse granularity's feature map (e.g., 16 $\times$ 16 = 256 for downsampling factor F=16, or 32 $\times$ 32 = 1024 for downsampling factor F=8), 1 extra pad code, 1 extra eos code and 1000 imagenet class number.
 - the vocab size of fine granularity's position: `model.params.transformer_config.params.fine_position_size`
 
+## Pre-trained Models
+
+| description | Training Details | Dataset | FID (val, 50k) | download link |
+| ----------- | ---------------- | --------| -------------- | ------------- |
+| DQ-VAE, dual granularity ($F_8=0.5, F_{16}=0.5$) (entropy-based) | 4 A100, 10 epochs | ImageNet | 1.6968 | [Google Cloud](https://drive.google.com/drive/folders/19pK7bfK40FxbZLJTcx8VHX0lqLbm5ECu?usp=sharing) |
+
 ## Reference
 If you found this code useful, please cite the following paper:
 
