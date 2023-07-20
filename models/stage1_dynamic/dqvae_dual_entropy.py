@@ -57,7 +57,7 @@ class Entropy(nn.Sequential):
         unfolded_images = torch.reshape(unfolded_images.unsqueeze(2),
                                         (unfolded_images.shape[0] * self.patch_num, unfolded_images.shape[2]))
 
-        entropy = self.entropy(unfolded_images, bins=torch.linspace(0, 1, 32).to(device=inputs.device),
+        entropy = self.entropy(unfolded_images, bins=torch.linspace(-1, 1, 32).to(device=inputs.device),
                                sigma=torch.tensor(0.01), batch=batch_size)
 
         return entropy
