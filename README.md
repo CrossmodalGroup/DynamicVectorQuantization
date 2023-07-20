@@ -84,6 +84,9 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py --gpus -1 --base configs/st
 ```
 The target ratio for the finer granularity (F=8) could be set in `model.params.encoderconfig.params.router_config.params.fine_grain_ratito`. The distribution of image entropy is pre-calculated in `scripts/tools/thresholds/entropy_thresholds_imagenet_train_patch-16.json`.
 
+### *UPDATE*
+Thanks for @1e0nhardt 's advice and we update the image entropy calculation in `models/stage1_dynamic/dqvae_dual_entropy.py`.
+
 ## Visualization of Variable-length Coding
 ![image](assets/dynamic_visual2.png)
 
